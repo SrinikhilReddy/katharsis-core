@@ -1,13 +1,20 @@
 package io.katharsis.resource.registry;
 
-import io.katharsis.repository.RelationshipRepository;
+import io.katharsis.locator.SampleJsonServiceLocator;
+import io.katharsis.repository.RepositoryInstanceBuilder;
 import io.katharsis.repository.exception.RelationshipRepositoryNotFoundException;
 import io.katharsis.resource.information.ResourceInformation;
-import io.katharsis.resource.mock.models.*;
+import io.katharsis.resource.mock.models.Document;
+import io.katharsis.resource.mock.models.Memorandum;
+import io.katharsis.resource.mock.models.Project;
+import io.katharsis.resource.mock.models.Task;
+import io.katharsis.resource.mock.models.Thing;
+import io.katharsis.resource.mock.models.User;
 import io.katharsis.resource.mock.repository.TaskRepository;
 import io.katharsis.resource.mock.repository.TaskToProjectRepository;
 import io.katharsis.resource.registry.repository.AnnotatedResourceEntryBuilder;
-import io.katharsis.resource.registry.repository.DirectRelationshipEntry;
+import io.katharsis.resource.registry.repository.DirectResponseRelationshipEntry;
+import io.katharsis.resource.registry.responseRepository.RelationshipRepositoryAdapter;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import nl.jqno.equalsverifier.Warning;
 import org.junit.Rule;
@@ -19,6 +26,7 @@ import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@SuppressWarnings("unchecked")
 public class RegistryEntryTest {
 
     @Rule
@@ -27,13 +35,15 @@ public class RegistryEntryTest {
     @Test
     public void onValidRelationshipClassShouldReturnRelationshipRepository() throws Exception {
         // GIVEN
-        RegistryEntry<Task> sut = new RegistryEntry(null, new AnnotatedResourceEntryBuilder<>(new TaskRepository()), Collections.singletonList(new DirectRelationshipEntry<>(new TaskToProjectRepository())));
+        RegistryEntry<Task> sut = new RegistryEntry(null, new AnnotatedResourceEntryBuilder<>(
+            new RepositoryInstanceBuilder(new SampleJsonServiceLocator(), TaskRepository.class)),
+            Collections.singletonList(new DirectResponseRelationshipEntry<>(new RepositoryInstanceBuilder(new SampleJsonServiceLocator(), TaskToProjectRepository.class))));
 
         // WHEN
-        RelationshipRepository<Task, ?, ?, ?> relationshipRepository = sut.getRelationshipRepositoryForClass(Project.class, null);
+        RelationshipRepositoryAdapter<Task, ?, ?, ?> relationshipRepository = sut.getRelationshipRepositoryForClass(Project.class, null);
 
         // THEN
-        assertThat(relationshipRepository).isExactlyInstanceOf(TaskToProjectRepository.class);
+        assertThat(relationshipRepository).isExactlyInstanceOf(RelationshipRepositoryAdapter.class);
     }
 
     @Test
@@ -41,7 +51,8 @@ public class RegistryEntryTest {
         // GIVEN
         ResourceInformation resourceInformation = new ResourceInformation(Task.class, null, null, null);
         RegistryEntry<Task> sut = new RegistryEntry(resourceInformation, null,
-            Collections.singletonList(new DirectRelationshipEntry<>(new TaskToProjectRepository())));
+            Collections.singletonList(new DirectResponseRelationshipEntry<>(
+                new RepositoryInstanceBuilder(new SampleJsonServiceLocator(), TaskToProjectRepository.class))));
 
         // THEN
         expectedException.expect(RelationshipRepositoryNotFoundException.class);
@@ -85,6 +96,7 @@ public class RegistryEntryTest {
         RegistryEntry red = new RegistryEntry(new ResourceInformation(Long.class, null, null, null), null);
         EqualsVerifier.forClass(RegistryEntry.class)
                 .withPrefabValues(RegistryEntry.class, blue, red)
+                .withPrefabValues(ResourceInformation.class, new ResourceInformation(String.class, null, null, null), new ResourceInformation(Long.class, null, null, null))
                 .withPrefabValues(Field.class, String.class.getDeclaredField("value"), String.class.getDeclaredField("hash"))
                 .usingGetClass()
                 .suppress(Warning.NONFINAL_FIELDS)

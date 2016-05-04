@@ -1,5 +1,41 @@
-# katharsis-core v2.3.0 git changelog
+# katharsis-core v2.4.0-SNAPSHOT git changelog
 
+2016-04-21    [#288](https://github.com/katharsis-project/katharsis-core/issues/288) Allowed repositories to fill in top level JSON meta and links information  (Patryk Orwat)  
+2016-04-21    [#277](https://github.com/katharsis-project/katharsis-core/issues/277) final query params regex definition (Patryk Orwat)  
+2016-04-15    [#250](https://github.com/katharsis-project/katharsis-core/issues/250) allowed using Jackson 2.5 (Patryk Orwat)  
+2016-04-14    [#290](https://github.com/katharsis-project/katharsis-core/issues/290) getting a repository instance at request time (Patryk Orwat)  
+2016-04-14    [#264](https://github.com/katharsis-project/katharsis-core/issues/264) [#289](https://github.com/katharsis-project/katharsis-core/issues/289) exceptions handling refactoring (Patryk Orwat)  
+
+**v2.3.2**  
+2016-04-10    v2.3.2 (Patryk Orwat)  
+2016-04-09    [#262](https://github.com/katharsis-project/katharsis-core/issues/262) fixed tests (Patryk Orwat)  
+2016-04-09    [#262](https://github.com/katharsis-project/katharsis-core/issues/262) meta and links aren't basic fields (Patryk Orwat)  
+2016-04-08    Update katharsis version in README.md (David Martin)  
+2016-04-06    [#280](https://github.com/katharsis-project/katharsis-core/issues/280) allow Katharsis to use Jackson 2.7+ (Patryk Orwat)  
+2016-04-06    [#267](https://github.com/katharsis-project/katharsis-core/issues/267) code refactoring for resource serialization (Patryk Orwat)  
+2016-04-04    [#267](https://github.com/katharsis-project/katharsis-core/issues/267) compiling code (Patryk Orwat)  
+2016-04-01    [#274](https://github.com/katharsis-project/katharsis-core/issues/274) additional characters for query params (Patryk Orwat)  
+2016-03-31    Fixes more cases for [#225](https://github.com/katharsis-project/katharsis-core/issues/225) (Ioan Eugen Stan)  
+2016-03-30    [#267](https://github.com/katharsis-project/katharsis-core/issues/267) dynamic attributes WIP (Patryk Orwat)  
+2016-03-24    [#271](https://github.com/katharsis-project/katharsis-core/issues/271) added tests for lookup override (Patryk Orwat)  
+2016-03-23    add option to overwrite an included value with the value of the relationship repository (Cade Parker)  
+2016-03-22    [#243](https://github.com/katharsis-project/katharsis-core/issues/243) javadoc for JsonApiLookupIncludeAutomatically (Patryk Orwat)  
+2016-03-22    [#263](https://github.com/katharsis-project/katharsis-core/issues/263) Non-annotated nested resource ID and relationships are now returned (Patryk Orwat)  
+2016-03-21    [#262](https://github.com/katharsis-project/katharsis-core/issues/262) added meta and links information per resource (Patryk Orwat)  
+
+**v2.3.1**  
+2016-03-13    v2.3.1 (Patryk Orwat)  
+2016-03-09    Fixes [#258](https://github.com/katharsis-project/katharsis-core/issues/258) (NPE when looking for a target class on @JsonApiRelationshipRepository) (Sergey Zubtsovskiy)  
+2016-03-08    multiple code improvements: squid:S00105, squid:S1226, squid:S1193, squid:S1700 (George Kankava)  
+2016-03-08    multiple code improvements: squid:S1068, squid:S2864, squid:S2325, squid:S1226, squid:S00105 (George Kankava)  
+2016-03-07    [#220](https://github.com/katharsis-project/katharsis-core/issues/220) inclusion enhancements (Patryk Orwat)  
+2016-03-07    [#246](https://github.com/katharsis-project/katharsis-core/issues/246) added test for bug reproduction (Patryk Orwat)  
+2016-03-07    multiple code improvements: squid:S00105, squid:S1068, squid:S1155 (George Kankava)  
+2016-03-07    multiple code improvements: squid:S2325, squid:S1596, squid:UselessParenthesesCheck (George Kankava)  
+2016-02-26    Remove object mapper clean up, because it's configured again in next usage.  katharsis-project/katharsis-core[#246](https://github.com/katharsis-project/katharsis-core/issues/246) (Tiago Daniel Jacobs)  
+2016-02-26    Clean up of attributes serializer code that fix katharsis-project/katharsis-core[#246](https://github.com/katharsis-project/katharsis-core/issues/246) (Tiago Daniel Jacobs)  
+2016-02-26    Changed the attributes serializer to only filter attributes of the root element in order to fix katharsis-project/katharsis-core[#246](https://github.com/katharsis-project/katharsis-core/issues/246) (Tiago Daniel Jacobs)  
+2016-02-22    [#242](https://github.com/katharsis-project/katharsis-core/issues/242) allowed multiple inclusions (Patryk Orwat)  
 
 **v2.3.0**  
 2016-02-21    v2.3.0 (Patryk Orwat)  

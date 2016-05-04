@@ -1,6 +1,8 @@
 package io.katharsis.resource.mock.models;
 
 import io.katharsis.resource.annotations.*;
+import io.katharsis.response.LinksInformation;
+import io.katharsis.response.MetaInformation;
 
 import java.util.List;
 
@@ -26,6 +28,23 @@ public class Task {
     @JsonApiToMany
     @JsonApiLookupIncludeAutomatically
     private List<Project> includedProjects;
+
+    @JsonApiMetaInformation
+    private MetaInformation metaInformation;
+
+    @JsonApiLinksInformation
+    private LinksInformation linksInformation;
+
+    private List<Task> otherTasks;
+
+    public List<Task> getOtherTasks() {
+        return otherTasks;
+    }
+
+    public Task setOtherTasks(List<Task> otherTasks) {
+        this.otherTasks = otherTasks;
+        return this;
+    }
 
     public Long getId() {
         return id;
@@ -74,5 +93,23 @@ public class Task {
 
     public void setIncludedProjects(List<Project> includedProjects) {
         this.includedProjects = includedProjects;
+    }
+
+    public MetaInformation getMetaInformation() {
+        return metaInformation;
+    }
+
+    public Task setMetaInformation(MetaInformation metaInformation) {
+        this.metaInformation = metaInformation;
+        return this;
+    }
+
+    public LinksInformation getLinksInformation() {
+        return linksInformation;
+    }
+
+    public Task setLinksInformation(LinksInformation linksInformation) {
+        this.linksInformation = linksInformation;
+        return this;
     }
 }

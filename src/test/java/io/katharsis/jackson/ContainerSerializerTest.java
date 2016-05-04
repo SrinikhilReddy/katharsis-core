@@ -9,8 +9,12 @@ import io.katharsis.resource.mock.models.OtherPojo;
 import io.katharsis.resource.mock.models.Pojo;
 import io.katharsis.resource.mock.models.Project;
 import io.katharsis.resource.mock.models.Task;
+import io.katharsis.resource.mock.models.User;
 import io.katharsis.response.Container;
-import io.katharsis.response.ResourceResponse;
+import io.katharsis.response.JsonApiResponse;
+import io.katharsis.response.LinksInformation;
+import io.katharsis.response.MetaInformation;
+import io.katharsis.response.ResourceResponseContext;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -48,14 +52,26 @@ public class ContainerSerializerTest extends BaseSerializerTest {
     @Test
     public void onSimpleObjectShouldIncludeAttributes() throws Exception {
         // GIVEN
-        Project project = new Project();
-        project.setName("name");
+        User user = new User();
+        user.setName("name");
+        user.setMetaInformation(new MetaInformation() {
+            public long getCount() {
+                return 42;
+            }
+        });
+        user.setLinksInformation(new LinksInformation() {
+            public String getSpaceBubble() {
+                return "value";
+            }
+        });
 
         // WHEN
-        String result = sut.writeValueAsString(new Container(project, testResponse));
+        String result = sut.writeValueAsString(new Container(user, testResponse));
 
         // THEN
         assertThatJson(result).node("attributes.name").isEqualTo("name");
+        assertThatJson(result).node("attributes.metaInformation").isAbsent();
+        assertThatJson(result).node("attributes.linksInformation").isAbsent();
     }
 
     @Test
@@ -83,8 +99,7 @@ public class ContainerSerializerTest extends BaseSerializerTest {
         JsonPath jsonPath = new PathBuilder(resourceRegistry).buildPath("/projects");
 
         // WHEN
-        String result = sut.writeValueAsString(new Container(project, new ResourceResponse(null, jsonPath, queryParams,
-            null, null)));
+        String result = sut.writeValueAsString(new Container(project, new ResourceResponseContext(new JsonApiResponse(), jsonPath, queryParams)));
 
         // THEN
         assertThatJson(result).node("attributes.name").isEqualTo("name");
@@ -106,8 +121,7 @@ public class ContainerSerializerTest extends BaseSerializerTest {
         JsonPath jsonPath = new PathBuilder(resourceRegistry).buildPath("/tasks");
 
         // WHEN
-        String result = sut.writeValueAsString(new Container(task, new ResourceResponse(null, jsonPath, queryParams,
-            null, null)));
+        String result = sut.writeValueAsString(new Container(task, new ResourceResponseContext(new JsonApiResponse(), jsonPath, queryParams)));
 
         // THEN
         assertThatJson(result).node("relationships.project").isPresent();
@@ -129,8 +143,8 @@ public class ContainerSerializerTest extends BaseSerializerTest {
         JsonPath jsonPath = new PathBuilder(resourceRegistry).buildPath("/tasks");
 
         // WHEN
-        String result = sut.writeValueAsString(new Container(task, new ResourceResponse(null, jsonPath, queryParams,
-            null, null)));
+        String result = sut.writeValueAsString(new Container(task,
+            new ResourceResponseContext(new JsonApiResponse(), jsonPath, queryParams)));
 
         // THEN
         assertThatJson(result).node("relationships.project").isAbsent();
@@ -149,11 +163,68 @@ public class ContainerSerializerTest extends BaseSerializerTest {
         JsonPath jsonPath = new PathBuilder(resourceRegistry).buildPath("/pojo");
 
         // WHEN
-        String result = sut.writeValueAsString(new Container(pojo, new ResourceResponse(null, jsonPath, queryParams,
-            null, null)));
+        String result = sut.writeValueAsString(new Container(pojo,
+            new ResourceResponseContext(new JsonApiResponse(), jsonPath, queryParams)));
 
         // THEN
         assertThatJson(result).node("attributes.other-pojo.value").isEqualTo("some value");
     }
 
+    @Test
+    public void onMetaInformationShouldSerializeCorrectly() throws Exception {
+        // GIVEN
+        Task task = new Task();
+        task.setMetaInformation(new MetaInformation() {
+            public String name = "value";
+        });
+
+        QueryParamsBuilder queryParamsBuilder = new QueryParamsBuilder(new DefaultQueryParamsParser());
+        QueryParams queryParams = queryParamsBuilder.buildQueryParams(Collections.<String, Set<String>>emptyMap());
+        JsonPath jsonPath = new PathBuilder(resourceRegistry).buildPath("/tasks");
+
+        // WHEN
+        String result = sut.writeValueAsString(new Container(task, new ResourceResponseContext(
+            new JsonApiResponse(), jsonPath, queryParams)));
+
+        // THEN
+        assertThatJson(result).node("meta.name").isEqualTo("value");
+    }
+
+    @Test
+    public void onLinksInformationShouldSerializeCorrectly() throws Exception {
+        // GIVEN
+        Task task = new Task();
+        task.setLinksInformation(new LinksInformation() {
+            public String name = "value";
+        });
+
+        QueryParamsBuilder queryParamsBuilder = new QueryParamsBuilder(new DefaultQueryParamsParser());
+        QueryParams queryParams = queryParamsBuilder.buildQueryParams(Collections.<String, Set<String>>emptyMap());
+        JsonPath jsonPath = new PathBuilder(resourceRegistry).buildPath("/tasks");
+
+        // WHEN
+        String result = sut.writeValueAsString(new Container(task,
+            new ResourceResponseContext(new JsonApiResponse(), jsonPath, queryParams)));
+
+        // THEN
+        assertThatJson(result).node("links.name").isEqualTo("value");
+    }
+
+    @Test
+    public void onNoLinksInformationShouldSerializeWithDefaultLinks() throws Exception {
+        // GIVEN
+        Project project = new Project()
+            .setId(1L);
+
+        QueryParamsBuilder queryParamsBuilder = new QueryParamsBuilder(new DefaultQueryParamsParser());
+        QueryParams queryParams = queryParamsBuilder.buildQueryParams(Collections.<String, Set<String>>emptyMap());
+        JsonPath jsonPath = new PathBuilder(resourceRegistry).buildPath("/projects");
+
+        // WHEN
+        String result = sut.writeValueAsString(new Container(project,
+            new ResourceResponseContext(new JsonApiResponse(), jsonPath, queryParams)));
+
+        // THEN
+        assertThatJson(result).node("links.self").isEqualTo("https://service.local/projects/1");
+    }
 }

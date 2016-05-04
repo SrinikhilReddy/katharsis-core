@@ -11,11 +11,10 @@ import io.katharsis.request.path.ResourcePath;
 import io.katharsis.resource.exception.ResourceNotFoundException;
 import io.katharsis.resource.registry.RegistryEntry;
 import io.katharsis.resource.registry.ResourceRegistry;
-import io.katharsis.response.BaseResponse;
+import io.katharsis.response.BaseResponseContext;
 import io.katharsis.utils.parser.TypeParser;
 
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
 
 public class ResourceDelete extends BaseController {
 
@@ -40,9 +39,8 @@ public class ResourceDelete extends BaseController {
     }
 
     @Override
-    public BaseResponse<?> handle(JsonPath jsonPath, QueryParams queryParams,
-                                  RepositoryMethodParameterProvider parameterProvider, RequestBody requestBody)
-            throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    public BaseResponseContext handle(JsonPath jsonPath, QueryParams queryParams,
+                                         RepositoryMethodParameterProvider parameterProvider, RequestBody requestBody) {
         String resourceName = jsonPath.getElementName();
         PathIds resourceIds = jsonPath.getIds();
         RegistryEntry registryEntry = resourceRegistry.getEntry(resourceName);
@@ -57,7 +55,7 @@ public class ResourceDelete extends BaseController {
                     .getType();
             Serializable castedId = typeParser.parse(id, idClass);
             //noinspection unchecked
-            registryEntry.getResourceRepository(parameterProvider).delete(castedId);
+            registryEntry.getResourceRepository(parameterProvider).delete(castedId, queryParams);
         }
 
         //TODO: Avoid nulls - use optional

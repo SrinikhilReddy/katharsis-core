@@ -1,14 +1,17 @@
 package io.katharsis.resource.registry;
 
 import io.katharsis.locator.SampleJsonServiceLocator;
-import io.katharsis.repository.NotFoundRepository;
 import io.katharsis.repository.exception.RepositoryInstanceNotFoundException;
 import io.katharsis.resource.field.ResourceFieldNameTransformer;
 import io.katharsis.resource.information.ResourceInformationBuilder;
-import io.katharsis.resource.mock.models.*;
-import io.katharsis.resource.mock.repository.ResourceWithoutRepositoryToProjectRepository;
-import io.katharsis.resource.mock.repository.TaskRepository;
+import io.katharsis.resource.mock.models.Document;
+import io.katharsis.resource.mock.models.Project;
+import io.katharsis.resource.mock.models.ResourceWithoutRepository;
+import io.katharsis.resource.mock.models.Task;
+import io.katharsis.resource.mock.models.Thing;
 import io.katharsis.resource.mock.repository.TaskToProjectRepository;
+import io.katharsis.resource.registry.responseRepository.RelationshipRepositoryAdapter;
+import io.katharsis.resource.registry.responseRepository.ResourceRepositoryAdapter;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -76,26 +79,6 @@ public class ResourceRegistryBuilderTest {
     }
 
     @Test
-    public void onNoEntityRepositoryInstanceShouldThrowException() {
-        // GIVEN
-        ResourceRegistryBuilder sut = new ResourceRegistryBuilder(new SampleJsonServiceLocator() {
-            public <T> T getInstance(Class<T> clazz) {
-                if (clazz == TaskRepository.class) {
-                    return null;
-                } else {
-                    return super.getInstance(clazz);
-                }
-            }
-        }, resourceInformationBuilder);
-
-        // THEN
-        expectedException.expect(RepositoryInstanceNotFoundException.class);
-
-        // WHEN
-        sut.build(TEST_MODELS_PACKAGE, TEST_MODELS_URL);
-    }
-
-    @Test
     public void onNoRelationshipRepositoryInstanceShouldThrowException() {
         // GIVEN
         ResourceRegistryBuilder sut = new ResourceRegistryBuilder(new SampleJsonServiceLocator() {
@@ -128,9 +111,9 @@ public class ResourceRegistryBuilderTest {
         RegistryEntry entry = result.getEntry(ResourceWithoutRepository.class);
 
         assertThat(entry.getResourceInformation().getResourceClass()).isEqualTo(ResourceWithoutRepository.class);
-        assertThat(entry.getResourceRepository(null)).isExactlyInstanceOf(NotFoundRepository.class);
+        assertThat(entry.getResourceRepository(null)).isExactlyInstanceOf(ResourceRepositoryAdapter.class);
         assertThat(entry.getRelationshipRepositoryForClass(Project.class, null))
-            .isExactlyInstanceOf(ResourceWithoutRepositoryToProjectRepository.class);
+            .isExactlyInstanceOf(RelationshipRepositoryAdapter.class);
     }
 
     @Test

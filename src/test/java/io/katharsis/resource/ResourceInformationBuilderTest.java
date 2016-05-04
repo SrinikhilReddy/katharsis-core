@@ -3,8 +3,12 @@ package io.katharsis.resource;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.katharsis.resource.annotations.JsonApiId;
+import io.katharsis.resource.annotations.JsonApiLinksInformation;
+import io.katharsis.resource.annotations.JsonApiMetaInformation;
 import io.katharsis.resource.annotations.JsonApiResource;
 import io.katharsis.resource.annotations.JsonApiToOne;
+import io.katharsis.resource.exception.init.MultipleJsonApiLinksInformationException;
+import io.katharsis.resource.exception.init.MultipleJsonApiMetaInformationException;
 import io.katharsis.resource.exception.init.ResourceDuplicateIdException;
 import io.katharsis.resource.exception.init.ResourceIdNotFoundException;
 import io.katharsis.resource.field.ResourceFieldNameTransformer;
@@ -62,17 +66,6 @@ public class ResourceInformationBuilderTest {
     }
 
     @Test
-    public void shouldHaveProperBasicFieldInfoForValidResource() throws Exception {
-        ResourceInformation resourceInformation = resourceInformationBuilder.build(Task.class);
-
-        assertThat(resourceInformation.getAttributeFields())
-            .isNotNull()
-            .hasSize(1)
-            .extracting(NAME_PROPERTY)
-            .containsOnly("name");
-    }
-
-    @Test
     public void shouldHaveProperRelationshipFieldInfoForValidResource() throws Exception {
         ResourceInformation resourceInformation = resourceInformationBuilder.build(Task.class);
 
@@ -88,37 +81,6 @@ public class ResourceInformationBuilderTest {
         expectedException.expect(ResourceIdNotFoundException.class);
 
         resourceInformationBuilder.build(IgnoredIdResource.class);
-    }
-
-    @Test
-    public void shouldHaveNoAttributesInfoForIgnoredField() throws Exception {
-        ResourceInformation resourceInformation = resourceInformationBuilder.build(AccessorGetterResource.class);
-
-        assertThat(resourceInformation.getAttributeFields())
-            .isNotNull()
-            .hasSize(1)
-            .extracting(NAME_PROPERTY)
-            .containsOnly("accessorField");
-    }
-
-    @Test
-    public void shouldNotReturnFieldBasedOnAccessorGetterWhenGetterIsIgnored() throws Exception {
-        ResourceInformation resourceInformation = resourceInformationBuilder.build(IgnoredAccessorGetterResource.class);
-
-        assertThat(resourceInformation.getAttributeFields())
-            .isNotNull()
-            .isEmpty();
-    }
-
-    @Test
-    public void shouldReturnFieldBasedOnFieldOnlyAndIgnoreGetter() throws Exception {
-        ResourceInformation resourceInformation = resourceInformationBuilder.build(FieldWithAccessorGetterResource.class);
-
-        assertThat(resourceInformation.getAttributeFields())
-            .isNotNull()
-            .hasSize(1)
-            .extracting(NAME_PROPERTY)
-            .containsOnly("accessorField");
     }
 
     @Test
@@ -139,50 +101,33 @@ public class ResourceInformationBuilderTest {
     }
 
     @Test
-    public void shouldHaveNoAttributesInfoForTransientField() throws Exception {
-        ResourceInformation resourceInformation = resourceInformationBuilder.build(IgnoredTransientAttributeResource.class);
+    public void shouldContainMetaInformationField() throws Exception {
+        ResourceInformation resourceInformation = resourceInformationBuilder.build(Task.class);
 
-        assertThat(resourceInformation.getAttributeFields())
-            .isNotNull()
-            .hasSize(0);
+        assertThat(resourceInformation.getMetaFieldName())
+            .isEqualTo("metaInformation");
     }
 
     @Test
-    public void shouldHaveNoAttributesInfoForStaticField() throws Exception {
-        ResourceInformation resourceInformation = resourceInformationBuilder.build(IgnoredStaticAttributeResource.class);
+    public void shouldThrowExceptionOnMultipleMetaInformationFields() throws Exception {
+        ResourceInformation resourceInformation = resourceInformationBuilder.build(Task.class);
 
-        assertThat(resourceInformation.getAttributeFields())
-            .isNotNull()
-            .hasSize(0);
+        assertThat(resourceInformation.getMetaFieldName())
+            .isEqualTo("metaInformation");
     }
 
     @Test
-    public void shouldHaveNoAttributesInfoForStaticMethod() throws Exception {
-        ResourceInformation resourceInformation = resourceInformationBuilder.build(IgnoredStaticGetterResource.class);
+    public void shouldContainLinksInformationField() throws Exception {
+        expectedException.expect(MultipleJsonApiMetaInformationException.class);
 
-        assertThat(resourceInformation.getAttributeFields())
-            .isNotNull()
-            .hasSize(0);
+        resourceInformationBuilder.build(MultipleMetaInformationResource.class);
     }
 
     @Test
-    public void shouldHaveOrderedAttributesForOrderedResource() throws Exception {
-        ResourceInformation resourceInformation = resourceInformationBuilder.build(OrderedResource.class);
+    public void shouldThrowExceptionOnMultipleLinksInformationFields() throws Exception {
+        expectedException.expect(MultipleJsonApiLinksInformationException.class);
 
-        assertThat(resourceInformation.getAttributeFields())
-            .isNotNull()
-            .extracting(NAME_PROPERTY)
-            .containsSequence("b", "a", "c");
-    }
-
-    @Test
-    public void shouldHaveAlphabeticAttributesForAlphabeticResource() throws Exception {
-        ResourceInformation resourceInformation = resourceInformationBuilder.build(AlphabeticResource.class);
-
-        assertThat(resourceInformation.getAttributeFields())
-            .isNotNull()
-            .extracting(NAME_PROPERTY)
-            .containsSequence("a", "b", "c");
+        resourceInformationBuilder.build(MultipleLinksInformationResource.class);
     }
 
     @JsonApiResource(type = "duplicatedIdAnnotationResources")
@@ -318,5 +263,29 @@ public class ResourceInformationBuilderTest {
         public String c;
         public String b;
         public String a;
+    }
+
+    @JsonApiResource(type = "multipleMetaInformationResource")
+    private static class MultipleMetaInformationResource {
+        @JsonApiId
+        private Long id;
+
+        @JsonApiMetaInformation
+        public String c;
+
+        @JsonApiMetaInformation
+        public String b;
+    }
+
+    @JsonApiResource(type = "multipleLinksInformationResource")
+    private static class MultipleLinksInformationResource {
+        @JsonApiId
+        private Long id;
+
+        @JsonApiLinksInformation
+        public String c;
+
+        @JsonApiLinksInformation
+        public String b;
     }
 }

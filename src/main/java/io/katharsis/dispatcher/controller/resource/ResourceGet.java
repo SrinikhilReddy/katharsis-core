@@ -1,9 +1,8 @@
 package io.katharsis.dispatcher.controller.resource;
 
 import io.katharsis.dispatcher.controller.HttpMethod;
-import io.katharsis.repository.RepositoryMethodParameterProvider;
 import io.katharsis.queryParams.QueryParams;
-import io.katharsis.repository.ResourceRepository;
+import io.katharsis.repository.RepositoryMethodParameterProvider;
 import io.katharsis.request.dto.RequestBody;
 import io.katharsis.request.path.JsonPath;
 import io.katharsis.request.path.PathIds;
@@ -12,15 +11,13 @@ import io.katharsis.resource.exception.ResourceNotFoundException;
 import io.katharsis.resource.include.IncludeLookupSetter;
 import io.katharsis.resource.registry.RegistryEntry;
 import io.katharsis.resource.registry.ResourceRegistry;
-import io.katharsis.response.BaseResponse;
-import io.katharsis.response.LinksInformation;
-import io.katharsis.response.MetaInformation;
-import io.katharsis.response.ResourceResponse;
+import io.katharsis.resource.registry.responseRepository.ResourceRepositoryAdapter;
+import io.katharsis.response.BaseResponseContext;
+import io.katharsis.response.JsonApiResponse;
+import io.katharsis.response.ResourceResponseContext;
 import io.katharsis.utils.parser.TypeParser;
 
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Collections;
 
 public class ResourceGet extends ResourceIncludeField {
 
@@ -46,9 +43,8 @@ public class ResourceGet extends ResourceIncludeField {
      * Passes the request to controller method.
      */
     @Override
-    public BaseResponse<?> handle(JsonPath jsonPath, QueryParams queryParams, RepositoryMethodParameterProvider 
-        parameterProvider, RequestBody requestBody)
-            throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, NoSuchFieldException {
+    public BaseResponseContext handle(JsonPath jsonPath, QueryParams queryParams, RepositoryMethodParameterProvider
+        parameterProvider, RequestBody requestBody) {
         String resourceName = jsonPath.getElementName();
         PathIds resourceIds = jsonPath.getIds();
         RegistryEntry registryEntry = resourceRegistry.getEntry(resourceName);
@@ -62,15 +58,11 @@ public class ResourceGet extends ResourceIncludeField {
                 .getIdField()
                 .getType();
         Serializable castedId = typeParser.parse(id, idClass);
-        ResourceRepository resourceRepository = registryEntry.getResourceRepository(parameterProvider);
+        ResourceRepositoryAdapter resourceRepository = registryEntry.getResourceRepository(parameterProvider);
         @SuppressWarnings("unchecked")
-        Object entity = resourceRepository.findOne(castedId, queryParams);
-        MetaInformation metaInformation =
-            getMetaInformation(resourceRepository, Collections.singletonList(entity), queryParams);
-        LinksInformation linksInformation =
-            getLinksInformation(resourceRepository, Collections.singletonList(entity), queryParams);
-        includeFieldSetter.setIncludedElements(resourceName, entity, queryParams, parameterProvider);
+        JsonApiResponse response = resourceRepository.findOne(castedId, queryParams);
+        includeFieldSetter.setIncludedElements(resourceName, response, queryParams, parameterProvider);
 
-        return new ResourceResponse(entity, jsonPath, queryParams, metaInformation, linksInformation);
+        return new ResourceResponseContext(response, jsonPath, queryParams);
     }
 }

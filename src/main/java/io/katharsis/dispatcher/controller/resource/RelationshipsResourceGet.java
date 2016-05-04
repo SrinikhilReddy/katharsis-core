@@ -2,25 +2,27 @@ package io.katharsis.dispatcher.controller.resource;
 
 import io.katharsis.dispatcher.controller.HttpMethod;
 import io.katharsis.queryParams.QueryParams;
-import io.katharsis.repository.RelationshipRepository;
 import io.katharsis.repository.RepositoryMethodParameterProvider;
 import io.katharsis.request.dto.RequestBody;
 import io.katharsis.request.path.JsonPath;
 import io.katharsis.request.path.PathIds;
 import io.katharsis.request.path.RelationshipsPath;
-import io.katharsis.resource.field.ResourceField;
 import io.katharsis.resource.exception.ResourceFieldNotFoundException;
+import io.katharsis.resource.field.ResourceField;
 import io.katharsis.resource.include.IncludeLookupSetter;
 import io.katharsis.resource.registry.RegistryEntry;
 import io.katharsis.resource.registry.ResourceRegistry;
-import io.katharsis.response.*;
+import io.katharsis.resource.registry.responseRepository.RelationshipRepositoryAdapter;
+import io.katharsis.response.BaseResponseContext;
+import io.katharsis.response.CollectionResponseContext;
+import io.katharsis.response.JsonApiResponse;
+import io.katharsis.response.LinkageContainer;
+import io.katharsis.response.ResourceResponseContext;
 import io.katharsis.utils.Generics;
 import io.katharsis.utils.parser.TypeParser;
 
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Collections;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 public class RelationshipsResourceGet extends ResourceIncludeField  {
@@ -37,8 +39,8 @@ public class RelationshipsResourceGet extends ResourceIncludeField  {
     }
 
     @Override
-    public BaseResponse handle(JsonPath jsonPath, QueryParams queryParams, RepositoryMethodParameterProvider parameterProvider, RequestBody requestBody)
-            throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, NoSuchFieldException {
+    public BaseResponseContext handle(JsonPath jsonPath, QueryParams queryParams,
+                                      RepositoryMethodParameterProvider parameterProvider, RequestBody requestBody) {
         String resourceName = jsonPath.getResourceName();
         PathIds resourceIds = jsonPath.getIds();
         RegistryEntry<?> registryEntry = resourceRegistry.getEntry(resourceName);
@@ -55,45 +57,57 @@ public class RelationshipsResourceGet extends ResourceIncludeField  {
         Class<?> relationshipFieldClass = Generics
             .getResourceClass(relationshipField.getGenericType(), baseRelationshipFieldClass);
 
-        RelationshipRepository relationshipRepositoryForClass = registryEntry
+        RelationshipRepositoryAdapter relationshipRepositoryForClass = registryEntry
             .getRelationshipRepositoryForClass(relationshipFieldClass, parameterProvider);
         RegistryEntry relationshipFieldEntry = resourceRegistry.getEntry(relationshipFieldClass);
-        BaseResponse target;
+        BaseResponseContext target;
         if (Iterable.class.isAssignableFrom(baseRelationshipFieldClass)) {
-            List<LinkageContainer> dataList = new LinkedList<>();
-
             @SuppressWarnings("unchecked")
-            Iterable<?> targetObjects = relationshipRepositoryForClass
+            JsonApiResponse response = relationshipRepositoryForClass
                 .findManyTargets(castedResourceId, elementName, queryParams);
-            MetaInformation metaInformation =
-                getMetaInformation(relationshipRepositoryForClass, targetObjects, queryParams);
-            LinksInformation linksInformation =
-                getLinksInformation(relationshipRepositoryForClass, targetObjects, queryParams);
-            if (targetObjects != null) {
-                includeFieldSetter.setIncludedElements(resourceName, targetObjects, queryParams, parameterProvider);
-                for (Object targetObject : targetObjects) {
-                    dataList.add(new LinkageContainer(targetObject, relationshipFieldClass, relationshipFieldEntry));
-                }
-            }
-            target = new CollectionResponse(dataList, jsonPath, queryParams, metaInformation, linksInformation);
+            includeFieldSetter.setIncludedElements(resourceName, response, queryParams, parameterProvider);
+
+            List<LinkageContainer> dataList = getLinkages(relationshipFieldClass, relationshipFieldEntry, response);
+            response.setEntity(dataList);
+            target = new CollectionResponseContext(response, jsonPath, queryParams);
         } else {
             @SuppressWarnings("unchecked")
-            Object targetObject = relationshipRepositoryForClass.findOneTarget(castedResourceId, elementName,
-                queryParams);
-            MetaInformation metaInformation =
-                getMetaInformation(relationshipRepositoryForClass, Collections.singletonList(targetObject), queryParams);
-            LinksInformation linksInformation =
-                getLinksInformation(relationshipRepositoryForClass, Collections.singletonList(targetObject), queryParams);
-            if (targetObject != null) {
-                LinkageContainer linkageContainer = new LinkageContainer(targetObject, relationshipFieldClass, relationshipFieldEntry);
-                includeFieldSetter.setIncludedElements(resourceName, targetObject, queryParams, parameterProvider);
-                target = new ResourceResponse(linkageContainer, jsonPath, queryParams, metaInformation, linksInformation);
+            JsonApiResponse response = relationshipRepositoryForClass
+                .findOneTarget(castedResourceId, elementName, queryParams);
+            includeFieldSetter.setIncludedElements(resourceName, response, queryParams, parameterProvider);
+
+            if (response.getEntity() != null) {
+                LinkageContainer linkageContainer = getLinkage(relationshipFieldClass, relationshipFieldEntry, response);
+                response.setEntity(linkageContainer);
+                target = new ResourceResponseContext(response, jsonPath, queryParams);
             } else {
-                target = new ResourceResponse(null, jsonPath, queryParams, metaInformation, linksInformation);
+                target = new ResourceResponseContext(response, jsonPath, queryParams);
             }
         }
 
         return target;
+    }
+
+    private LinkageContainer getLinkage(Class<?> relationshipFieldClass, RegistryEntry relationshipFieldEntry, Object targetObject) {
+        if (targetObject instanceof JsonApiResponse) {
+            return new LinkageContainer(((JsonApiResponse)targetObject).getEntity(), relationshipFieldClass, relationshipFieldEntry);
+        } else {
+            return new LinkageContainer(targetObject, relationshipFieldClass, relationshipFieldEntry);
+        }
+    }
+
+    private List<LinkageContainer> getLinkages(Class<?> relationshipFieldClass, RegistryEntry relationshipFieldEntry,
+                                               JsonApiResponse targetObjects) {
+        List<LinkageContainer> dataList = new ArrayList<>();
+        if (targetObjects == null) {
+            return dataList;
+        }
+        Iterable resources = (Iterable) targetObjects.getEntity();
+
+        for (Object resource : resources) {
+            dataList.add(new LinkageContainer(resource, relationshipFieldClass, relationshipFieldEntry));
+        }
+        return dataList;
     }
 
     private Serializable getResourceId(PathIds resourceIds, RegistryEntry<?> registryEntry) {
