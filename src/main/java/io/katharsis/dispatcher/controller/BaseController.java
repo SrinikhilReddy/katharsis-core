@@ -1,13 +1,18 @@
 package io.katharsis.dispatcher.controller;
 
 import io.katharsis.queryParams.QueryParams;
+import io.katharsis.queryParams.QueryParamsBuilder;
 import io.katharsis.repository.RepositoryMethodParameterProvider;
+import io.katharsis.request.Request;
 import io.katharsis.request.dto.RequestBody;
 import io.katharsis.request.path.JsonPath;
 import io.katharsis.resource.exception.RequestBodyException;
 import io.katharsis.resource.registry.RegistryEntry;
 import io.katharsis.response.BaseResponseContext;
 import io.katharsis.response.JsonApiResponse;
+import io.katharsis.utils.parser.TypeParser;
+
+import java.io.Serializable;
 
 /**
  * Represents a controller contract. There can be many kinds of requests that can be send to the framework. The
@@ -26,27 +31,34 @@ public abstract class BaseController {
      */
     public abstract boolean isAcceptable(JsonPath jsonPath, String requestType);
 
+    public abstract boolean isAcceptable(Request request);
+
+    public abstract TypeParser getTypeParser();
+
+    public abstract QueryParamsBuilder getQueryParamsBuilder();
+
+    public abstract RepositoryMethodParameterProvider getParameterProvider();
+
     /**
      * Passes the request to controller method.
      *
-     * @param jsonPath          Requested resource path
-     * @param parameterProvider repository method parameter provider
-     * @param queryParams       Params specifying request
-     * @param requestBody       Top-level JSON object from method's body of the request passed as {@link RequestBody}
+     * @param jsonPath    Requested resource path
+     * @param queryParams Params specifying request
+     * @param requestBody Top-level JSON object from method's body of the request passed as {@link RequestBody}
      * @return BaseResponseContext object
      */
-    public abstract BaseResponseContext handle(JsonPath jsonPath, QueryParams queryParams, RepositoryMethodParameterProvider
-        parameterProvider, RequestBody requestBody);
+    public abstract BaseResponseContext handle(JsonPath jsonPath, QueryParams queryParams, RequestBody requestBody);
 
+    public abstract BaseResponseContext handle(Request request);
 
     protected void verifyTypes(HttpMethod methodType, String resourceEndpointName, RegistryEntry endpointRegistryEntry,
-                             RegistryEntry bodyRegistryEntry) {
+                               RegistryEntry bodyRegistryEntry) {
         if (endpointRegistryEntry.equals(bodyRegistryEntry)) {
             return;
         }
         if (bodyRegistryEntry == null || !bodyRegistryEntry.isParent(endpointRegistryEntry)) {
             String message = String.format("Inconsistent type definition between path and body: body type: " +
-                "%s, request type: %s", methodType, resourceEndpointName);
+                    "%s, request type: %s", methodType, resourceEndpointName);
             throw new RequestBodyException(methodType, resourceEndpointName, message);
         }
     }
@@ -58,4 +70,20 @@ public abstract class BaseController {
             return responseOrResource;
         }
     }
+
+    protected Serializable parseId(RegistryEntry registryEntry, String id) {
+        @SuppressWarnings("unchecked") Class<? extends Serializable> idClass = (Class<? extends Serializable>) registryEntry
+                .getResourceInformation()
+                .getIdField()
+                .getType();
+        return getTypeParser().parse(id, idClass);
+    }
+
+    protected Iterable<? extends Serializable> parseIds(RegistryEntry registryEntry, Iterable<String> ids) {
+        Class<? extends Serializable> idType = (Class<? extends Serializable>) registryEntry.getResourceInformation()
+                .getIdField().getType();
+
+        return getTypeParser().parse(ids, idType);
+    }
+
 }

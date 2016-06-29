@@ -2,8 +2,11 @@ package io.katharsis.dispatcher.controller.resource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.katharsis.dispatcher.controller.HttpMethod;
+import io.katharsis.dispatcher.controller.Utils;
 import io.katharsis.queryParams.QueryParams;
+import io.katharsis.queryParams.QueryParamsBuilder;
 import io.katharsis.repository.RepositoryMethodParameterProvider;
+import io.katharsis.request.Request;
 import io.katharsis.request.dto.DataBody;
 import io.katharsis.request.dto.RequestBody;
 import io.katharsis.request.path.FieldPath;
@@ -11,13 +14,12 @@ import io.katharsis.request.path.JsonPath;
 import io.katharsis.request.path.PathIds;
 import io.katharsis.resource.exception.RequestBodyException;
 import io.katharsis.resource.exception.RequestBodyNotFoundException;
-import io.katharsis.resource.exception.ResourceFieldNotFoundException;
-import io.katharsis.resource.exception.ResourceNotFoundException;
 import io.katharsis.resource.field.ResourceField;
 import io.katharsis.resource.registry.RegistryEntry;
 import io.katharsis.resource.registry.ResourceRegistry;
 import io.katharsis.resource.registry.responseRepository.RelationshipRepositoryAdapter;
 import io.katharsis.resource.registry.responseRepository.ResourceRepositoryAdapter;
+import io.katharsis.response.BaseResponseContext;
 import io.katharsis.response.HttpStatus;
 import io.katharsis.response.JsonApiResponse;
 import io.katharsis.response.ResourceResponseContext;
@@ -33,29 +35,35 @@ import java.util.Collections;
  */
 public class FieldResourcePost extends ResourceUpsert {
 
-    public FieldResourcePost(ResourceRegistry resourceRegistry, TypeParser typeParser, @SuppressWarnings
-        ("SameParameterValue") ObjectMapper objectMapper) {
-        super(resourceRegistry, typeParser, objectMapper);
+    public FieldResourcePost(ResourceRegistry resourceRegistry,
+                             RepositoryMethodParameterProvider parameterProvider,
+                             TypeParser typeParser,
+                             @SuppressWarnings
+            ("SameParameterValue") ObjectMapper objectMapper,
+                             QueryParamsBuilder paramsBuilder) {
+        super(resourceRegistry, parameterProvider, typeParser, objectMapper, paramsBuilder);
     }
 
     @Override
     public boolean isAcceptable(JsonPath jsonPath, String requestType) {
         return !jsonPath.isCollection()
-            && FieldPath.class.equals(jsonPath.getClass())
-            && HttpMethod.POST.name()
-            .equals(requestType);
+                && FieldPath.class.equals(jsonPath.getClass())
+                && HttpMethod.POST.name()
+                .equals(requestType);
     }
 
     @Override
-    public ResourceResponseContext handle(JsonPath jsonPath, QueryParams queryParams,
-                                          RepositoryMethodParameterProvider parameterProvider, RequestBody requestBody) {
+    public boolean isAcceptable(Request request) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    public ResourceResponseContext handle(JsonPath jsonPath, QueryParams queryParams, RequestBody requestBody) {
         String resourceEndpointName = jsonPath.getResourceName();
         PathIds resourceIds = jsonPath.getIds();
         RegistryEntry endpointRegistryEntry = resourceRegistry.getEntry(resourceEndpointName);
+        Utils.checkResourceExists(endpointRegistryEntry, resourceEndpointName);
 
-        if (endpointRegistryEntry == null) {
-            throw new ResourceNotFoundException(resourceEndpointName);
-        }
         if (requestBody == null) {
             throw new RequestBodyNotFoundException(HttpMethod.POST, resourceEndpointName);
         }
@@ -65,14 +73,13 @@ public class FieldResourcePost extends ResourceUpsert {
 
         Serializable castedResourceId = getResourceId(resourceIds, endpointRegistryEntry);
         ResourceField relationshipField = endpointRegistryEntry.getResourceInformation()
-            .findRelationshipFieldByName(jsonPath.getElementName());
-        if (relationshipField == null) {
-            throw new ResourceFieldNotFoundException(jsonPath.getElementName());
-        }
+                .findRelationshipFieldByName(jsonPath.getElementName());
+
+        Utils.checkResourceFieldExists(relationshipField, jsonPath.getElementName());
 
         Class<?> baseRelationshipFieldClass = relationshipField.getType();
         Class<?> relationshipFieldClass = Generics
-            .getResourceClass(relationshipField.getGenericType(), baseRelationshipFieldClass);
+                .getResourceClass(relationshipField.getGenericType(), baseRelationshipFieldClass);
 
         RegistryEntry relationshipRegistryEntry = resourceRegistry.getEntry(relationshipFieldClass);
         String relationshipResourceType = resourceRegistry.getResourceType(relationshipFieldClass);
@@ -80,25 +87,25 @@ public class FieldResourcePost extends ResourceUpsert {
         DataBody dataBody = requestBody.getSingleData();
         Object resource = buildNewResource(relationshipRegistryEntry, dataBody, relationshipResourceType);
         setAttributes(dataBody, resource, relationshipRegistryEntry.getResourceInformation());
-        ResourceRepositoryAdapter resourceRepository = relationshipRegistryEntry.getResourceRepository(parameterProvider);
+        ResourceRepositoryAdapter resourceRepository = relationshipRegistryEntry.getResourceRepository(getParameterProvider());
         JsonApiResponse savedResourceResponse = resourceRepository.save(resource, queryParams);
-        saveRelations(queryParams, extractResource(savedResourceResponse), relationshipRegistryEntry, dataBody, parameterProvider);
+        saveRelations(queryParams, extractResource(savedResourceResponse), relationshipRegistryEntry, dataBody, getParameterProvider());
 
         Serializable resourceId = (Serializable) PropertyUtils
-            .getProperty(extractResource(savedResourceResponse), relationshipRegistryEntry.getResourceInformation()
-                .getIdField()
-                .getUnderlyingName());
+                .getProperty(extractResource(savedResourceResponse), relationshipRegistryEntry.getResourceInformation()
+                        .getIdField()
+                        .getUnderlyingName());
 
         RelationshipRepositoryAdapter relationshipRepositoryForClass = endpointRegistryEntry
-            .getRelationshipRepositoryForClass(relationshipFieldClass, parameterProvider);
+                .getRelationshipRepositoryForClass(relationshipFieldClass, getParameterProvider());
 
         @SuppressWarnings("unchecked")
-        JsonApiResponse parent = endpointRegistryEntry.getResourceRepository(parameterProvider)
-            .findOne(castedResourceId, queryParams);
+        JsonApiResponse parent = endpointRegistryEntry.getResourceRepository(getParameterProvider())
+                .findOne(castedResourceId, queryParams);
         if (Iterable.class.isAssignableFrom(baseRelationshipFieldClass)) {
             //noinspection unchecked
             relationshipRepositoryForClass.addRelations(parent.getEntity(), Collections.singletonList(resourceId), jsonPath
-                .getElementName(), queryParams);
+                    .getElementName(), queryParams);
         } else {
             //noinspection unchecked
             relationshipRepositoryForClass.setRelation(parent.getEntity(), resourceId, jsonPath.getElementName(), queryParams);
@@ -106,14 +113,14 @@ public class FieldResourcePost extends ResourceUpsert {
         return new ResourceResponseContext(savedResourceResponse, jsonPath, queryParams, HttpStatus.CREATED_201);
     }
 
-    private Serializable getResourceId(PathIds resourceIds, RegistryEntry<?> registryEntry) {
-        String resourceId = resourceIds.getIds()
-            .get(0);
-        @SuppressWarnings("unchecked")
-        Class<? extends Serializable> idClass = (Class<? extends Serializable>) registryEntry
-            .getResourceInformation()
-            .getIdField()
-            .getType();
-        return typeParser.parse(resourceId, idClass);
+    @Override
+    public BaseResponseContext handle(Request request) {
+        throw new UnsupportedOperationException("Not implemented");
     }
+
+    private Serializable getResourceId(PathIds resourceIds, RegistryEntry<?> registryEntry) {
+        String resourceId = resourceIds.getIds().get(0);
+        return parseId(registryEntry, resourceId);
+    }
+
 }
